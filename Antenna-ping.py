@@ -4,12 +4,13 @@ import time
 import statistics
 import argparse
 
+#################################################################################################################
 def get_node_list(port=None):
     """Fetches the current node list from the device."""
     cmd = ['meshtastic', '--nodes']
     if port:
         cmd.extend(['--port', port])
-    
+
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         return result.stdout
@@ -17,89 +18,123 @@ def get_node_list(port=None):
         print(f"Error fetching node list: {e}")
         return ""
 
-def is_node_direct(node_id, node_list_output):
+#################################################################################################################
+def get_node_info(node_id, node_list_output):
     """
-    Checks if the node_id exists in the local node DB and appears to be 0 hops away.
-    The CLI table typically has a 'Hops away' or 'SNR' column for direct neighbors.
+    Find and parse a single node's data from a table-like string.
+
+    :param node_id: Substring to match in User, ID, or AKA columns.
+    :param node_list_output: The full table as a string.
+    :return: List of parsed values for the matching row, or None if not found.
     """
-    # Clean ID for matching (strip '!' if user provided it)
-    clean_id = node_id.replace('!', '').lower()
-    
-    # Check if node exists in the output at all
-    if clean_id not in node_list_output.lower():
-        return False, "Node not found in local node DB."
+    # Normalize search term
+    search_term = node_id.lower()
 
-    # Look for the specific line for this node to check distance
-    # In 2026 CLI, the table includes 'Hops Away'
-    for line in node_list_output.splitlines():
-        if clean_id in line.lower():
-            # Basic check: a direct neighbor usually shows '0' hops away
-            # or has a valid SNR value without a 'via' relay.
-            if " 0 " in line: 
-                return True, "Node verified as 0 hops away."
-            else:
-                return False, f"Node found but appears to be multi-hop: {line.strip()}"
-                
-    return False, "Node reachability status unclear."
+    # Split into lines
+    lines = node_list_output.splitlines()
 
+    # Extract header line (the one with column names)
+    header_line = next((line for line in lines if "User" in line and "ID" in line), None)
+    if not header_line:
+        return None
+
+    # Get column names from header
+    columns = [col.strip() for col in header_line.split("│") if col.strip()]
+
+    # Filter data lines (skip header and separators)
+    data_lines = [line for line in lines if line.strip().startswith("│") and "│" in line and "User" not in line]
+
+    # Search for the line containing node_id (case-insensitive)
+    for line in data_lines:
+        if search_term in line.lower():
+            # Split row into parts
+            parts = [p.strip() for p in line.split("│") if p.strip()]
+            # Map columns to values
+            return dict(zip(columns, parts))
+
+    return None
+
+#################################################################################################################
 def run_traceroute(node_id, port=None):
-    """Executes a single traceroute and parses SNR values."""
+    """Executes a single traceroute and parses the return SNR value if direct"""
     cmd = ['meshtastic']
     if port:
         cmd.extend(['--port', port])
     cmd.extend(['--traceroute', node_id])
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
-        output = result.stdout
-        snr_matches = re.findall(r'\(([-+]?\d*\.?\d+)dB\)', output)
-        return [float(s) for s in snr_matches] if snr_matches else None
-    except Exception:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        lines = result.stdout.splitlines()
+
+        # Find the line that starts with "Route traced back to us:"
+        back_line_index = next((i for i, line in enumerate(lines) if "Route traced back to us:" in line), None)
+        if back_line_index is None or back_line_index + 1 >= len(lines):
+            return None
+
+        # The actual route back is on the next line
+        route_back = lines[back_line_index + 1].strip()
+
+        # Split hops by "-->"
+        hops = [hop.strip() for hop in route_back.split("-->")]
+
+        # If only two nodes (start and destination), then single hop
+        if len(hops) == 2:
+            # Extract SNR from the last hop (should be in parentheses like (-7.0dB))
+            match = re.search(r"\(([-+]?\d*\.?\d+)dB\)", hops[-1])
+            if match:
+                return float(match.group(1))
         return None
 
+    except Exception:
+        return None
+#################################################################################################################
 def main():
     parser = argparse.ArgumentParser(description="Automate Meshtastic traceroutes for direct neighbors.")
-    parser.add_argument("target", help="Target Node ID (e.g., '!ba4bf9d0')")
-    parser.add_argument("-i", "--iterations", type=int, default=8, help="Number of traces (default: 8)")
+    parser.add_argument("target", help="Target Node ID (any part of the ID, name, or short name)")
+    parser.add_argument("-r", "--repeat", type=int, default=8, help="Number of traces (default: 8)")
     parser.add_argument("-m", "--minutes", type=float, default=15.0, help="Minutes between traces (default: 15)")
     parser.add_argument("-p", "--port", help="Serial port (e.g., 'COM3')")
+    parser.add_argument("-i", "--info", action="store_true", help="Get node info ")
 
     args = parser.parse_args()
 
-    # Step 1: Pre-check Reachability
-    print(f"Checking if {args.target} is a direct neighbor...")
-    node_data = get_node_list(args.port)
-    is_direct, message = is_node_direct(args.target, node_data)
-    
-    if not is_direct:
-        print(f"Aborting: {message}")
-        return
 
-    print(f"Success: {message}\nStarting {args.iterations} iterations...")
+    # Step 1: Pre-check Reachability
+    print(f"Checking on {args.target}...")
+    node_data = get_node_list(args.port)
+    node_info = get_node_info(args.target, node_data)
+
+    if args.info:
+        print(f"node_info:{node_info}")
+
+#    is_direct, message = is_node_direct(node_info[2], node_data)
+#    if not is_direct:
+#        print(f"Aborting: {message}")
+#        return
+
+#    print(f"Success: {message}\nStarting {args.repeat} iterations...")
+    print(f"Starting {args.repeat} iterations...")
 
     # Step 2: Run Traceroutes
     outbound_history, inbound_history = [], []
     delay_seconds = args.minutes * 60
 
-    for i in range(args.iterations):
-        print(f"[{time.strftime('%H:%M:%S')}] Trace {i+1}/{args.iterations}:", end=" ", flush=True)
-        snrs = run_traceroute(args.target, args.port)
-        
-        if snrs and len(snrs) >= 2:
-            outbound_history.append(snrs[0])
-            inbound_history.append(snrs[-1])
-            print(f"OK (Out: {snrs[0]}dB, In: {snrs[-1]}dB)")
+    for i in range(args.repeat):
+        print(f"[{time.strftime('%H:%M:%S')}] Trace {i+1}/{args.repeat}:", end=" ", flush=True)
+        snr = run_traceroute(node_info['ID'], args.port)
+
+        if snr:
+            inbound_history.append(snr)
+            print(f"OK In: {snr}dB")
         else:
             print("FAILED (Route lost or timed out)")
-        
-        if i < args.iterations - 1:
+
+        if i < args.repeat - 1:
             time.sleep(delay_seconds)
 
     # Step 3: Average Results
-    if outbound_history:
-        print(f"\n--- Final Averages ---")
-        print(f"Outbound: {statistics.mean(outbound_history):.2f} dB")
-        print(f"Inbound:  {statistics.mean(inbound_history):.2f} dB")
+    if inbound_history:
+        print(f"Avg Inbound:  {statistics.mean(inbound_history):.2f} dB")
 
 if __name__ == "__main__":
     main()
