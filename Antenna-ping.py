@@ -3,6 +3,7 @@ import re
 import time
 import statistics
 import argparse
+import sys
 
 #################################################################################################################
 def get_node_list(port=None, host=None):
@@ -98,8 +99,9 @@ def main():
     parser.add_argument("-r", "--repeat", type=int, default=8, help="Number of traces (default: 8)")
     parser.add_argument("-m", "--minutes", type=float, default=15.0, help="Minutes between traces (default: 15)")
     parser.add_argument("-p", "--port", help="Serial port (e.g., 'COM3')")
-    parser.add_argument("-h", "--host", help="Host IP/Name")
-    parser.add_argument("-i", "--info", action="store_true", help="Get node info ")
+    parser.add_argument("--host", help="Host IP/Name")
+    parser.add_argument("-i", "--info", action="store_true", help="Get node info")
+    parser.add_argument("-q", "--quite", action="store_true", help="Only print the final result")
 
     args = parser.parse_args()
 
@@ -112,34 +114,33 @@ def main():
     if args.info:
         print(f"node_info:{node_info}")
 
-#    is_direct, message = is_node_direct(node_info[2], node_data)
-#    if not is_direct:
-#        print(f"Aborting: {message}")
-#        return
+    # check that the target node is heard directly (0 hops)
+    if int(node_info["Hops"]) > 0:
+        print(f"Aborting: Target node is not direct")
+        sys.exit()
 
-#    print(f"Success: {message}\nStarting {args.repeat} iterations...")
-    print(f"Starting {args.repeat} iterations...")
+    if !args.quiet: print(f"Starting {args.repeat} iterations...")
 
     # Step 2: Run Traceroutes
     outbound_history, inbound_history = [], []
     delay_seconds = args.minutes * 60
 
     for i in range(args.repeat):
-        print(f"[{time.strftime('%H:%M:%S')}] Trace {i+1}/{args.repeat}:", end=" ", flush=True)
+        if !args.quiet: print(f"[{time.strftime('%H:%M:%S')}] Trace {i+1}/{args.repeat}:", end=" ", flush=True)
         snr = run_traceroute(node_info['ID'], args.port, args.host)
 
         if snr:
             inbound_history.append(snr)
-            print(f"OK In: {snr}dB")
+            if !args.quiet: print(f"OK In: {snr}dB")
         else:
-            print("FAILED (Route lost or timed out)")
+            if !args.quiet: print("FAILED (Route lost or timed out)")
 
         if i < args.repeat - 1:
             time.sleep(delay_seconds)
 
     # Step 3: Average Results
     if inbound_history:
-        print(f"Avg Inbound:  {statistics.mean(inbound_history):.2f} dB")
+        print(f"Avg Inbound for {args.target}:  {statistics.mean(inbound_history):.2f} dB")
 
 if __name__ == "__main__":
     main()
