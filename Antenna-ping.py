@@ -5,11 +5,13 @@ import statistics
 import argparse
 
 #################################################################################################################
-def get_node_list(port=None):
+def get_node_list(port=None, host=None):
     """Fetches the current node list from the device."""
     cmd = ['meshtastic', '--nodes']
     if port:
         cmd.extend(['--port', port])
+    if host:
+        cmd.extend(['--host', host])
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
@@ -55,11 +57,13 @@ def get_node_info(node_id, node_list_output):
     return None
 
 #################################################################################################################
-def run_traceroute(node_id, port=None):
+def run_traceroute(node_id, port=None, host=None):
     """Executes a single traceroute and parses the return SNR value if direct"""
     cmd = ['meshtastic']
     if port:
         cmd.extend(['--port', port])
+    if host:
+        cmd.extend(['--host', host])
     cmd.extend(['--traceroute', node_id])
 
     try:
@@ -94,6 +98,7 @@ def main():
     parser.add_argument("-r", "--repeat", type=int, default=8, help="Number of traces (default: 8)")
     parser.add_argument("-m", "--minutes", type=float, default=15.0, help="Minutes between traces (default: 15)")
     parser.add_argument("-p", "--port", help="Serial port (e.g., 'COM3')")
+    parser.add_argument("-h", "--host", help="Host IP/Name")
     parser.add_argument("-i", "--info", action="store_true", help="Get node info ")
 
     args = parser.parse_args()
@@ -101,7 +106,7 @@ def main():
 
     # Step 1: Pre-check Reachability
     print(f"Checking on {args.target}...")
-    node_data = get_node_list(args.port)
+    node_data = get_node_list(args.port, args.host)
     node_info = get_node_info(args.target, node_data)
 
     if args.info:
@@ -121,7 +126,7 @@ def main():
 
     for i in range(args.repeat):
         print(f"[{time.strftime('%H:%M:%S')}] Trace {i+1}/{args.repeat}:", end=" ", flush=True)
-        snr = run_traceroute(node_info['ID'], args.port)
+        snr = run_traceroute(node_info['ID'], args.port, args.host)
 
         if snr:
             inbound_history.append(snr)
