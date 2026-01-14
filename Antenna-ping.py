@@ -4,6 +4,7 @@ import time
 import statistics
 import argparse
 import sys
+import pprint
 
 #################################################################################################################
 def get_node_list(port=None, host=None):
@@ -74,7 +75,7 @@ def run_traceroute(node_id, port=None, host=None):
         # Find the line that starts with "Route traced back to us:"
         back_line_index = next((i for i, line in enumerate(lines) if "Route traced back to us:" in line), None)
         if back_line_index is None or back_line_index + 1 >= len(lines):
-            return None
+            return None, "Route lost or timed out"
 
         # The actual route back is on the next line
         route_back = lines[back_line_index + 1].strip()
@@ -87,11 +88,13 @@ def run_traceroute(node_id, port=None, host=None):
             # Extract SNR from the last hop (should be in parentheses like (-7.0dB))
             match = re.search(r"\(([-+]?\d*\.?\d+)dB\)", hops[-1])
             if match:
-                return float(match.group(1))
-        return None
+                return float(match.group(1)), "OK"
+        elif len(hops) > 2:
+            return None, "Reponse not direct"
+        return None, ""
 
     except Exception:
-        return None
+        return None, ""
 #################################################################################################################
 def main():
     parser = argparse.ArgumentParser(description="Automate Meshtastic traceroutes for direct neighbors.")
@@ -112,28 +115,30 @@ def main():
     node_info = get_node_info(args.target, node_data)
 
     if args.info:
-        print(f"node_info:{node_info}")
+        pprint.pp(node_info)
 
     # check that the target node is heard directly (0 hops)
     if int(node_info["Hops"]) > 0:
-        print(f"Aborting: Target node is not direct")
+        print(f"Aborting: Target is not direct")
         sys.exit()
+    else
+        if !args.quiet: print(f"Target is direct, ", end="")
 
-    if !args.quiet: print(f"Starting {args.repeat} iterations...")
+    if !args.quiet: print(f"Starting {args.repeat} iterations, every {args.minutes} minutes...")
 
     # Step 2: Run Traceroutes
-    outbound_history, inbound_history = [], []
+    inbound_history = []
     delay_seconds = args.minutes * 60
 
     for i in range(args.repeat):
         if !args.quiet: print(f"[{time.strftime('%H:%M:%S')}] Trace {i+1}/{args.repeat}:", end=" ", flush=True)
-        snr = run_traceroute(node_info['ID'], args.port, args.host)
+        snr, message = run_traceroute(node_info['ID'], args.port, args.host)
 
         if snr:
             inbound_history.append(snr)
-            if !args.quiet: print(f"OK In: {snr}dB")
+            if !args.quiet: print(f"OK : {snr}dB")
         else:
-            if !args.quiet: print("FAILED (Route lost or timed out)")
+            if !args.quiet: print("FAIL: {message}")
 
         if i < args.repeat - 1:
             time.sleep(delay_seconds)
