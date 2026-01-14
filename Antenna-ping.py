@@ -138,7 +138,7 @@ def main():
             inbound_history.append(snr)
             if not args.quiet: print(f"OK : {snr}dB")
         else:
-            if not args.quiet: print("FAIL: {message}")
+            if not args.quiet: print(f"FAIL: {message}")
 
         if i < args.repeat - 1:
             time.sleep(delay_seconds)
