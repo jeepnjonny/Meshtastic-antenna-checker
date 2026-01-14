@@ -121,7 +121,7 @@ def main():
     if int(node_info["Hops"]) > 0:
         print(f"Aborting: Target is not direct")
         sys.exit()
-    else
+    else:
         if !args.quiet: print(f"Target is direct, ", end="")
 
     if !args.quiet: print(f"Starting {args.repeat} iterations, every {args.minutes} minutes...")
