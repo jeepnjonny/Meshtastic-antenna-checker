@@ -104,7 +104,7 @@ def main():
     parser.add_argument("-p", "--port", help="Serial port (e.g., 'COM3')")
     parser.add_argument("--host", help="Host IP/Name")
     parser.add_argument("-i", "--info", action="store_true", help="Get node info")
-    parser.add_argument("-q", "--quite", action="store_true", help="Only print the final result")
+    parser.add_argument("-q", "--quiet", action="store_true", help="Only print the final result")
 
     args = parser.parse_args()
 
@@ -122,23 +122,23 @@ def main():
         print(f"Aborting: Target is not direct")
         sys.exit()
     else:
-        if !args.quiet: print(f"Target is direct, ", end="")
+        if not args.quiet: print(f"Target is direct, ", end="")
 
-    if !args.quiet: print(f"Starting {args.repeat} iterations, every {args.minutes} minutes...")
+    if not args.quiet: print(f"Starting {args.repeat} iterations, every {args.minutes} minutes...")
 
     # Step 2: Run Traceroutes
     inbound_history = []
     delay_seconds = args.minutes * 60
 
     for i in range(args.repeat):
-        if !args.quiet: print(f"[{time.strftime('%H:%M:%S')}] Trace {i+1}/{args.repeat}:", end=" ", flush=True)
+        if not args.quiet: print(f"[{time.strftime('%H:%M:%S')}] Trace {i+1}/{args.repeat}:", end=" ", flush=True)
         snr, message = run_traceroute(node_info['ID'], args.port, args.host)
 
         if snr:
             inbound_history.append(snr)
-            if !args.quiet: print(f"OK : {snr}dB")
+            if not args.quiet: print(f"OK : {snr}dB")
         else:
-            if !args.quiet: print("FAIL: {message}")
+            if not args.quiet: print("FAIL: {message}")
 
         if i < args.repeat - 1:
             time.sleep(delay_seconds)
