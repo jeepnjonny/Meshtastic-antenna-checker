@@ -90,11 +90,12 @@ def run_traceroute(node_id, port=None, host=None):
             if match:
                 return float(match.group(1)), "OK"
         elif len(hops) > 2:
-            return None, "Reponse not direct"
-        return None, ""
+            return None, "FAIL: Reponse not direct"
+        # length of hops < 2?
+        return None, "FAIL: no hops"
 
     except Exception:
-        return None, ""
+        return None, "FAIL: Exception"
 #################################################################################################################
 def main():
     parser = argparse.ArgumentParser(description="Automate Meshtastic traceroutes for direct neighbors.")
@@ -136,9 +137,9 @@ def main():
 
         if snr:
             inbound_history.append(snr)
-            if not args.quiet: print(f"OK : {snr}dB")
+            if not args.quiet: print(f"{message}: {snr}dB", flush=True)
         else:
-            if not args.quiet: print(f"FAIL: {message}")
+            if not args.quiet: print(f"{message}", flush=True)
 
         if i < args.repeat - 1:
             time.sleep(delay_seconds)
