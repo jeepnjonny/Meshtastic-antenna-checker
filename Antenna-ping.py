@@ -66,7 +66,6 @@ def run_traceroute(node_id, port=None, host=None):
         cmd.extend(['--port', port])
     if host:
         cmd.extend(['--host', host])
-    cmd.extend(['--timeout 60'])
     cmd.extend(['--traceroute', node_id])
 
     try:
@@ -76,6 +75,7 @@ def run_traceroute(node_id, port=None, host=None):
         # Find the line that starts with "Route traced back to us:"
         back_line_index = next((i for i, line in enumerate(lines) if "Route traced back to us:" in line), None)
         if back_line_index is None or back_line_index + 1 >= len(lines):
+            print(f"lines={lines}, back_line_index={back_line_index}")
             return None, "FAIL: Route lost or timed out"
 
         # The actual route back is on the next line
