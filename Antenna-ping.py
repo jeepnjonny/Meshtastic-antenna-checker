@@ -16,7 +16,7 @@ def get_node_list(port=None, host=None):
         cmd.extend(['--host', host])
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=65)
         return result.stdout
     except Exception as e:
         print(f"Error fetching node list: {e}")
@@ -66,10 +66,11 @@ def run_traceroute(node_id, port=None, host=None):
         cmd.extend(['--port', port])
     if host:
         cmd.extend(['--host', host])
+    cmd.extend(['--timeout 60'])
     cmd.extend(['--traceroute', node_id])
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=65)
         lines = result.stdout.splitlines()
 
         # Find the line that starts with "Route traced back to us:"
