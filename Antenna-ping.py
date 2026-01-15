@@ -76,7 +76,7 @@ def run_traceroute(node_id, port=None, host=None):
         # Find the line that starts with "Route traced back to us:"
         back_line_index = next((i for i, line in enumerate(lines) if "Route traced back to us:" in line), None)
         if back_line_index is None or back_line_index + 1 >= len(lines):
-            return None, "Route lost or timed out"
+            return None, "FAIL: Route lost or timed out"
 
         # The actual route back is on the next line
         route_back = lines[back_line_index + 1].strip()
