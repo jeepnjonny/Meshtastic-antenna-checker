@@ -16,7 +16,7 @@ def get_node_list(port=None, host=None):
         cmd.extend(['--host', host])
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=65)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
         return result.stdout
     except Exception as e:
         print(f"Error fetching node list: {e}")
@@ -70,7 +70,7 @@ def run_traceroute(node_id, port=None, host=None):
     cmd.extend(['--traceroute', node_id])
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=65)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
         lines = result.stdout.splitlines()
 
         # Find the line that starts with "Route traced back to us:"
@@ -120,11 +120,11 @@ def main():
         pprint.pp(node_info)
 
     # check that the target node is heard directly (0 hops)
-    if int(node_info["Hops"]) > 0:
-        print(f"Aborting: Target is not direct")
-        sys.exit()
-    else:
-        if not args.quiet: print(f"Target is direct, ", end="")
+    #if int(node_info["Hops"]) > 0:
+    #    print(f"Aborting: Target is not direct")
+    #    sys.exit()
+    #else:
+    #    if not args.quiet: print(f"Target is direct, ", end="")
 
     if not args.quiet: print(f"Starting {args.repeat} iterations, every {args.minutes} minutes...")
 
