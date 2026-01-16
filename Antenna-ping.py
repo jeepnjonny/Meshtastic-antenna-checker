@@ -1,6 +1,7 @@
 import subprocess
 import re
 import time
+from datetime import datetime, timedelta
 import statistics
 import argparse
 import sys
@@ -97,6 +98,11 @@ def run_traceroute(node_id, port=None, host=None):
     except Exception:
         return None, "FAIL: Exception"
 #################################################################################################################
+def calc_endtime(repeats, minutes):
+    """returns the timestamp when the process will complete"""
+    future_time = datetime.now() + timedelta(minutes=minutes * repeats)
+    return future_time.strftime("%Y-%m-%d %H:%M:%S")
+#################################################################################################################
 def main():
     parser = argparse.ArgumentParser(description="Automate Meshtastic traceroutes for direct neighbors.")
     parser.add_argument("target", help="Target Node ID (any part of the ID, name, or short name)")
@@ -125,7 +131,7 @@ def main():
     #else:
     #    if not args.quiet: print(f"Target is direct, ", end="")
 
-    if not args.quiet: print(f"Starting {args.repeat} iterations, every {args.minutes} minutes...")
+    if not args.quiet: print(f"Starting {args.repeat} iterations, every {args.minutes} minutes. Should complete at {calc_endtime(args.repeat, args.minutes)}")
 
     # Step 2: Run Traceroutes
     inbound_history = []
