@@ -152,7 +152,19 @@ def main():
 
     # Step 3: Average Results
     if inbound_history:
-        print(f"Avg Inbound for {args.target}:  {statistics.mean(inbound_history):.2f} dB")
+        inbound_mean = statistics.mean(inbound_history)
+        inbound_stdev = statistics.stdev(inbound_history)
+        threshold = 3 # define the outlier threshold. Typically 2 or 3
+        lower_bound = inbound_mean - (threshold * inbound_stdev)
+        upper_bound = inbound_mean + (threshold * inbound_stdev)
+
+        filtered_data = [x for x in inbound_history if lower_bound <= x <= upper_bound]
+        filtered_mean = statistics.mean(filtered_data)
+
+        print(f"stats for {args.target}")
+        print(f"Original mean:  {inbound_mean:.2f}")
+        print(f"standard dev :  {inbound_stdev}")
+        print(f"Filtered mean:  {filtered_mean:.2f}")
 
 if __name__ == "__main__":
     main()
